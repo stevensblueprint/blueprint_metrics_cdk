@@ -2,6 +2,8 @@ import * as cdk from "aws-cdk-lib/core";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as events from "aws-cdk-lib/aws-events";
+import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as path from "path";
 import { Construct } from "constructs";
 
@@ -28,11 +30,13 @@ export class BlueprintMetricsCdkStack extends cdk.Stack {
       },
     );
 
-    const executionRole = new iam.Role(this, 'BlueprintMetricsExecutionRole', {
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-      roleName: 'bp-metrics-role',
+    const executionRole = new iam.Role(this, "BlueprintMetricsExecutionRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      roleName: "bp-metrics-role",
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole",
+        ),
       ],
     });
 
@@ -47,7 +51,7 @@ export class BlueprintMetricsCdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_14,
       handler: "main.handler",
       role: executionRole,
-      functionName: 'bp-metrics-fn',
+      functionName: "bp-metrics-fn",
       code: lambda.Code.fromAsset(path.join(__dirname, "../lambda"), {
         bundling: {
           image: lambda.Runtime.PYTHON_3_14.bundlingImage,
@@ -87,6 +91,17 @@ export class BlueprintMetricsCdkStack extends cdk.Stack {
         allowedOrigins: ["*"],
         allowedMethods: [lambda.HttpMethod.POST],
       },
+    });
+
+    const scheduleRule = events.Schedule.cron({
+      minute: "0",
+      hour: "19",
+      weekDay: "MON",
+    });
+
+    new events.Rule(this, "WeeklyMetricsRule", {
+      schedule: scheduleRule,
+      targets: [new targets.LambdaFunction(fn)],
     });
 
     new cdk.CfnOutput(this, "LambdaFunctionName", {
