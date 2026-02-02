@@ -7,8 +7,6 @@ import logging
 from github import Github
 import threading
 from utils import safe_get_env
-import httplib2
-import google_auth_httplib2
 import boto3
 
 logger = logging.getLogger(__name__)

@@ -113,10 +113,12 @@ def handler(event, context):
         all_results = results_store.get_all()
         logger.info(all_results)
 
-        # send_discord_message(
-        #     webhook_url=safe_get_env("DISCORD_WEBHOOK_URL"),
-        #     message=f"Metrics collection completed. Results: {all_results}",
-        # )
+        webhook_url = safe_get_env("DISCORD_WEBHOOK_URL")
+        for key, result in all_results.items():
+            message = f"**{key}**: {result}"
+            if len(message) > 2000:
+                message = message[:1997] + "..."
+            send_discord_message(webhook_url=webhook_url, message=message)
 
         logger.info("Finished successfully.")
         return {
