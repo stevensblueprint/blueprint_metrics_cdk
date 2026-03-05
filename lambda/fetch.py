@@ -1,5 +1,11 @@
 from clients import SheetsClient
-from models import FinanceSheet, FinanceConfig, RecruitmentSheet, RecruitmentConfig
+from models import (
+    FinanceSheet,
+    FinanceConfig,
+    RecruitmentSheet,
+    RecruitmentConfig,
+    MetricOutput,
+)
 from configs import FINANCE_SPECS, RECRUITMENT_SPECS
 import logging
 
@@ -10,7 +16,7 @@ def fetch_finance_sheet(
     client: SheetsClient,
     cfg: FinanceConfig,
     sheet: FinanceSheet,
-):
+) -> MetricOutput:
     logger.info(f"Fetching finance sheet: {sheet.value}")
     sheet_cfg = cfg.get(sheet)
 

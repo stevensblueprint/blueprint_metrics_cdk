@@ -6,9 +6,9 @@ from outputs import (
     RecruitmentNPO_CRM,
     RecruitmentSponsor_CRM,
 )
-from models import FinanceSheet, SheetSpec, RecruitmentSheet
+from models import FinanceSheet, SheetSpec, RecruitmentSheet, MetricOutput
 
-FINANCE_SPECS: dict[FinanceSheet, SheetSpec[object]] = {
+FINANCE_SPECS: dict[FinanceSheet, SheetSpec] = {
     FinanceSheet.SUMMARY: SheetSpec(parse=FinanceSummary.parse_finance_summary),
     FinanceSheet.TRAJECTORY: SheetSpec(
         parse=FinanceTrajectory.parse_finance_trajectory
@@ -18,7 +18,7 @@ FINANCE_SPECS: dict[FinanceSheet, SheetSpec[object]] = {
     ),
 }
 
-RECRUITMENT_SPECS: dict[RecruitmentSheet, SheetSpec[object]] = {
+RECRUITMENT_SPECS: dict[RecruitmentSheet, SheetSpec] = {
     RecruitmentSheet.SUMMARY: SheetSpec(
         parse=RecruitmentSummary.parse_recruitment_summary
     ),

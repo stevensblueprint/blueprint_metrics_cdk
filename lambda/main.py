@@ -7,6 +7,7 @@ from models import (
     RecruitmentSheet,
     FinanceConfig,
     RecruitmentConfig,
+    MetricOutput,
 )
 from fetch import fetch_finance_sheet, fetch_recruitment_sheet
 from services import GithubService
@@ -77,7 +78,7 @@ def handler(event, context):
         sheets_client = SheetsClient()
         github_client = GithubClient()
         github_service = GithubService(github_client, github_cfg)
-        results_store = ThreadSafeResultStore()
+        results_store = ThreadSafeResultStore[MetricOutput]()
 
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = {
@@ -114,11 +115,8 @@ def handler(event, context):
         logger.info(all_results)
 
         webhook_url = safe_get_env("DISCORD_WEBHOOK_URL")
-        for key, result in all_results.items():
-            message = f"**{key}**: {result}"
-            if len(message) > 2000:
-                message = message[:1997] + "..."
-            send_discord_message(webhook_url=webhook_url, message=message)
+        for _, result in all_results.items():
+            send_discord_message(webhook_url=webhook_url, metric=result)
 
         logger.info("Finished successfully.")
         return {

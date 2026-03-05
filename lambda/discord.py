@@ -1,14 +1,15 @@
 import urllib.request
 import logging
 import json
+from models import MetricOutput
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def send_discord_message(webhook_url: str, message: str) -> None:
+def send_discord_message(webhook_url: str, metric: MetricOutput) -> None:
     """Sends a message to a Discord channel via webhook."""
-    data = {"content": message}
+    data = {"content": metric.format()}
     payload = json.dumps(data).encode("utf-8")
     logger.info(f"Discord payload: {payload}")
 

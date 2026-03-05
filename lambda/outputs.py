@@ -2,20 +2,26 @@ from dataclasses import dataclass
 from typing import Any, Sequence, List
 import logging
 from utils import _to_float, _as_int, _as_float
-from models import TransactionRecord, CurrentGoalWrapper, RecruitmentNPO, Sponsor
+from models import (
+    TransactionRecord,
+    CurrentGoalWrapper,
+    RecruitmentNPO,
+    Sponsor,
+    MetricOutput,
+)
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class FinanceSummary:
+class FinanceSummary(MetricOutput):
     total_budget: float
     total_spent: float
     current_utilization: float
     pending_reimbursements: float
 
-    @staticmethod
-    def parse_finance_summary(values: Sequence[Sequence[Any]]) -> FinanceSummary:
+    @classmethod
+    def parse_finance_summary(cls, values: Sequence[Sequence[Any]]) -> FinanceSummary:
         """
         Example parser for a "Dashboard" range like A1:D20.
 
@@ -36,27 +42,38 @@ class FinanceSummary:
 
         utilization = (total_spent / total_budget) if total_budget else 0.0
 
-        return FinanceSummary(
+        return cls(
             total_budget=total_budget,
             total_spent=total_spent,
             current_utilization=utilization,
             pending_reimbursements=pending,
         )
 
+    def format(self) -> str:
+        pct = self.current_utilization * 100.0
+        return (
+            "📊 **Finance Summary**\n"
+            f"> 💰 **Budget:**      `${self.total_budget:>12,.2f}`\n"
+            f"> 💸 **Spent:**       `${self.total_spent:>12,.2f}`\n"
+            f"> 📈 **Utilization:** `{pct:>11.1f}%`\n"
+            f"> ⏳ **Pending:**     `${self.pending_reimbursements:>12,.2f}`"
+        )
+
 
 @dataclass(frozen=True)
-class FinanceTrajectory:
+class FinanceTrajectory(MetricOutput):
     week: int
     week_ending: str
     actual_spend: float
-    prijected_spend: float
+    projected_spend: float
     variance: float
     top_spending_category: str
 
-    @staticmethod
+    @classmethod
     def parse_finance_trajectory(
+        cls,
         values: Sequence[Sequence[Any]],
-    ) -> Sequence[FinanceTrajectory]:
+    ) -> Sequence[MetricOutput]:
         """
         Example parser for a "Trajectory" range like A1:F52.
 
@@ -77,11 +94,11 @@ class FinanceTrajectory:
                 variance = _to_float(row[4])
                 top_category = str(row[5]).strip()
 
-                trajectory = FinanceTrajectory(
+                trajectory = cls(
                     week=week,
                     week_ending=week_ending,
                     actual_spend=actual_spend,
-                    prijected_spend=projected_spend,
+                    projected_spend=projected_spend,
                     variance=variance,
                     top_spending_category=top_category,
                 )
@@ -94,13 +111,24 @@ class FinanceTrajectory:
 
         return trajectories
 
+    def format(self) -> str:
+        sign = "+" if self.variance >= 0 else ""
+        return (
+            f"📅 **Finance Trajectory — Week {self.week}** *(ending {self.week_ending})*\n"
+            f"> 💵 **Actual:**      `${self.actual_spend:>12,.2f}`\n"
+            f"> 📉 **Projected:**   `${self.projected_spend:>12,.2f}`\n"
+            f"> ↕️ **Variance:**    `{sign}${self.variance:>11,.2f}`\n"
+            f"> 🏷️ **Top Category:** {self.top_spending_category}"
+        )
+
 
 @dataclass(frozen=True)
-class FinanceTransactions:
+class FinanceTransactions(MetricOutput):
     transactions: List[TransactionRecord]
 
-    @staticmethod
+    @classmethod
     def parse_finance_transactions(
+        cls,
         values: Sequence[Sequence[Any]],
     ) -> FinanceTransactions:
         """
@@ -144,11 +172,26 @@ class FinanceTransactions:
                 )
                 continue  # Skip rows with invalid data
 
-        return FinanceTransactions(transactions=transactions)
+        return cls(transactions=transactions)
+
+    def format(self) -> str:
+        if not self.transactions:
+            return "📝 **Finance Transactions**\n> No transactions recorded."
+        total = sum(t.amount for t in self.transactions)
+        pending = sum(t.amount for t in self.transactions if t.status.lower() == "pending")
+        return (
+            f"📝 **Finance Transactions** *({len(self.transactions)} total)*\n"
+            f"> 💵 **Total Amount:** `${total:>12,.2f}`\n"
+            f"> ⏳ **Pending:**      `${pending:>12,.2f}`"
+        )
+
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_finance_transactions(values)
 
 
 @dataclass(frozen=True)
-class RecruitmentSummary:
+class RecruitmentSummary(MetricOutput):
     npos_contacted: CurrentGoalWrapper[int]
     npos_recruited: CurrentGoalWrapper[int]
     sponsors_contacted: CurrentGoalWrapper[int]
@@ -156,8 +199,9 @@ class RecruitmentSummary:
     applicatuibs_received: CurrentGoalWrapper[int]
     challenges_submitted: CurrentGoalWrapper[int]
 
-    @staticmethod
+    @classmethod
     def parse_recruitment_summary(
+        cls,
         values: Sequence[Sequence[Any]],
     ) -> RecruitmentSummary:
         """
@@ -190,7 +234,7 @@ class RecruitmentSummary:
                 goal=_as_float(goal, 0.0),
             )
 
-        return RecruitmentSummary(
+        return cls(
             npos_contacted=to_current_goal("npos contacted"),
             npos_recruited=to_current_goal("npos recruited"),
             sponsors_contacted=to_current_goal("sponsors contacted"),
@@ -199,12 +243,29 @@ class RecruitmentSummary:
             challenges_submitted=to_current_goal("challenges submitted"),
         )
 
+    def format(self) -> str:
+        def cg(current: Any, goal: Any) -> str:
+            pct = (current / goal * 100) if goal else 0
+            return f"`{current} / {goal}` *({pct:.0f}%)*"
 
-class RecruitmentNPO_CRM:
+        return (
+            "🎯 **Recruitment Summary**\n"
+            f"> 🏢 **NPOs Contacted:**        {cg(self.npos_contacted.current, self.npos_contacted.goal)}\n"
+            f"> ✅ **NPOs Recruited:**         {cg(self.npos_recruited.current, self.npos_recruited.goal)}\n"
+            f"> 🤝 **Sponsors Contacted:**    {cg(self.sponsors_contacted.current, self.sponsors_contacted.goal)}\n"
+            f"> 💰 **Sponsorship Secured:**   `${self.sponsorship_secured.current:,.2f} / ${self.sponsorship_secured.goal:,.2f}`\n"
+            f"> 📝 **Applications Received:** {cg(self.applicatuibs_received.current, self.applicatuibs_received.goal)}\n"
+            f"> 🏆 **Challenges Submitted:**  {cg(self.challenges_submitted.current, self.challenges_submitted.goal)}"
+        )
+
+
+@dataclass(frozen=True)
+class RecruitmentNPO_CRM(MetricOutput):
     npos: List[RecruitmentNPO]
 
-    @staticmethod
+    @classmethod
     def parse_npo_crm(
+        cls,
         values: Sequence[Sequence[Any]],
     ) -> List[RecruitmentNPO]:
         """
@@ -245,19 +306,33 @@ class RecruitmentNPO_CRM:
 
                 npos.append(npo)
             except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"Skipping invalid NPO CRM row {i}: {row}. Error: {e}"
-                )
+                logger.warning(f"Skipping invalid NPO CRM row {i}: {row}. Error: {e}")
                 continue  # Skip rows with invalid data
 
         return npos
 
+    def format(self) -> str:
+        status_counts: dict[str, int] = {}
+        for npo in self.npos:
+            status_counts[npo.status] = status_counts.get(npo.status, 0) + 1
+        lines = [
+            "📋 **NPO CRM**",
+            f"> **Total NPOs tracked:** `{len(self.npos)}`",
+        ]
+        if status_counts:
+            lines.append("> **By Status:**")
+            for status, count in sorted(status_counts.items()):
+                lines.append(f">   • {status}: `{count}`")
+        return "\n".join(lines)
 
-class RecruitmentSponsor_CRM:
+
+@dataclass(frozen=True)
+class RecruitmentSponsor_CRM(MetricOutput):
     sponsors: List[Sponsor]
 
-    @staticmethod
+    @classmethod
     def parse_sponsor_crm(
+        cls,
         values: Sequence[Sequence[Any]],
     ) -> List[Sponsor]:
         """
@@ -307,3 +382,11 @@ class RecruitmentSponsor_CRM:
                 continue  # Skip rows with invalid data
 
         return sponsors
+
+    def format(self) -> str:
+        total_pledged = sum(s.pledged for s in self.sponsors)
+        return (
+            "💼 **Sponsor CRM**\n"
+            f"> **Total Sponsors tracked:** `{len(self.sponsors)}`\n"
+            f"> **Total Pledged:**          `${total_pledged:,.2f}`"
+        )

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, Mapping, TypeVar, Callable, Sequence, Any, List, Set
 from dataclasses import dataclass, field
+
+T = TypeVar("T")
 
 
 class FinanceSheet(Enum):
@@ -34,12 +37,9 @@ class SheetConfig:
         return f"{self.sheet_name}!{self.sheet_range}"
 
 
-T = TypeVar("T")
-
-
 @dataclass(frozen=True)
-class SheetSpec(Generic[T]):
-    parse: Callable[[Sequence[Sequence[Any]]], T]
+class SheetSpec:
+    parse: Callable[[Sequence[Sequence[Any]]], MetricOutput]
 
 
 SheetKey = TypeVar("SheetKey", bound=Enum)
@@ -164,7 +164,7 @@ class AlertMetrics:
 
 
 @dataclass(frozen=True)
-class TeamReport:
+class TeamReport(MetricOutput):
     team_name: str
     velocity: VelocityMetrics
     participation: ParticipationMetrics
@@ -172,6 +172,31 @@ class TeamReport:
     alerts: AlertMetrics
     start_date: str
     end_date: str
+
+    def format(self) -> str:
+        stale_prs = ", ".join(self.alerts.stale_prs) if self.alerts.stale_prs else "None"
+        stale_issues = ", ".join(self.alerts.stale_issues) if self.alerts.stale_issues else "None"
+        return (
+            f"🛠️ **GitHub Metrics — {self.team_name}** *({self.start_date} → {self.end_date})*\n"
+            f"> **Velocity**\n"
+            f">   • Merged PRs:       `{self.velocity.merged_prs}`\n"
+            f">   • Issues Closed:    `{self.velocity.issues_closed}`\n"
+            f">   • Avg Cycle Time:   `{self.velocity.avg_cycle_time:.1f} days`\n"
+            f"> **Participation**\n"
+            f">   • Active Contributors: `{self.participation.active_contributors} / {self.participation.total_members}` "
+            f"*({self.participation.participation_rate * 100:.0f}%)*\n"
+            f">   • Non-Lead Reviews:    `{self.participation.non_lead_reviews}`\n"
+            f"> **NPO Impact**\n"
+            f">   • Features Shipped:    `{self.npo_impact.features_shipped}`\n"
+            f">   • Avg Time to Deliver: `{self.npo_impact.avg_time_to_deliver:.1f} days`\n"
+            f"> **Alerts**\n"
+            f">   • Stale PRs:    {stale_prs}\n"
+            f">   • Stale Issues: {stale_issues}"
+        )
+
+    @classmethod
+    def parse(cls, values):
+        raise NotImplementedError("TeamReport is built from GitHub API, not sheet values")
 
 
 @dataclass
@@ -185,3 +210,24 @@ class RawTeamMetrics:
     npo_time_to_close: List[float] = field(default_factory=list)
     alerts_stale_prs: List[str] = field(default_factory=list)
     alerts_stale_issues: List[str] = field(default_factory=list)
+
+
+class MetricOutput(ABC):
+    """
+    Parent for all output objects.
+    Forces subclasses to implement `format()`.
+    """
+
+    @abstractmethod
+    def format(self) -> str:
+        """Return a human-readable representation (Discord/Slack/plaintext)."""
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def parse(cls: type[T], values: Sequence[Sequence[Any]]) -> T:
+        """
+        Optional but useful: enforce a consistent parse entrypoint.
+        If you don't want this, you can delete it and keep only `format()`.
+        """
+        raise NotImplementedError
