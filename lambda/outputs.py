@@ -49,6 +49,10 @@ class FinanceSummary(MetricOutput):
             pending_reimbursements=pending,
         )
 
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_finance_summary(values)
+
     def format(self) -> str:
         pct = self.current_utilization * 100.0
         return (
@@ -109,7 +113,14 @@ class FinanceTrajectory(MetricOutput):
                 )
                 continue  # Skip rows with invalid data
 
-        return trajectories
+        return trajectories[-1] if trajectories else cls(
+            week=0, week_ending="N/A", actual_spend=0.0,
+            projected_spend=0.0, variance=0.0, top_spending_category="N/A",
+        )
+
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_finance_trajectory(values)
 
     def format(self) -> str:
         sign = "+" if self.variance >= 0 else ""
@@ -243,6 +254,10 @@ class RecruitmentSummary(MetricOutput):
             challenges_submitted=to_current_goal("challenges submitted"),
         )
 
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_recruitment_summary(values)
+
     def format(self) -> str:
         def cg(current: Any, goal: Any) -> str:
             pct = (current / goal * 100) if goal else 0
@@ -309,7 +324,11 @@ class RecruitmentNPO_CRM(MetricOutput):
                 logger.warning(f"Skipping invalid NPO CRM row {i}: {row}. Error: {e}")
                 continue  # Skip rows with invalid data
 
-        return npos
+        return cls(npos=npos)
+
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_npo_crm(values)
 
     def format(self) -> str:
         status_counts: dict[str, int] = {}
@@ -381,7 +400,11 @@ class RecruitmentSponsor_CRM(MetricOutput):
                 )
                 continue  # Skip rows with invalid data
 
-        return sponsors
+        return cls(sponsors=sponsors)
+
+    @classmethod
+    def parse(cls, values):
+        return cls.parse_sponsor_crm(values)
 
     def format(self) -> str:
         total_pledged = sum(s.pledged for s in self.sponsors)
