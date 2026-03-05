@@ -114,8 +114,14 @@ def handler(event, context):
         all_results = results_store.get_all()
         logger.info(all_results)
 
-        webhook_url = safe_get_env("DISCORD_WEBHOOK_URL")
-        for _, result in all_results.items():
+        default_webhook_url = safe_get_env("DISCORD_WEBHOOK_URL")
+        for key, result in all_results.items():
+            team_cfg = github_cfg.teams.get(key)
+            webhook_url = (
+                team_cfg.discord_webhook_url
+                if team_cfg and team_cfg.discord_webhook_url
+                else default_webhook_url
+            )
             send_discord_message(webhook_url=webhook_url, metric=result)
 
         logger.info("Finished successfully.")
@@ -136,6 +142,3 @@ def handler(event, context):
             "body": json.dumps({"message": "An error occurred", "error": str(e)}),
         }
 
-
-if __name__ == "__main__":
-    handler(None, None)

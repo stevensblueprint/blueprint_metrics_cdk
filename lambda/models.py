@@ -127,6 +127,7 @@ class TeamConfig:
     repos: List[str]
     members: List[str]
     tech_leads: List[str]
+    discord_webhook_url: str | None = None
 
 
 @dataclass(frozen=True)

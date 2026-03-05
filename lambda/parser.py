@@ -40,6 +40,7 @@ def _parse_github_config(raw: Mapping[str, Any]) -> GithubConfig:
                 repos=team_data.get("repos", []),
                 members=team_data.get("members", []),
                 tech_leads=team_data.get("tech_leads", []),
+                discord_webhook_url=team_data.get("discord_webhook_url"),
             )
         except Exception as e:
             logger.error(f"Error parsing team config for {team_name}: {e}")
