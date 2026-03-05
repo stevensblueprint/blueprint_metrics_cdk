@@ -14,6 +14,11 @@ export interface BlueprintMetricsCdkStackProps extends cdk.StackProps {
   googleWorkloadIdentityServiceAccount: string;
 }
 
+const TEAM_SCHEDULES: Record<string, events.Schedule> = {
+  "genxl": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "MON" }),
+  "open-referral": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "THU" }),
+};
+
 export class BlueprintMetricsCdkStack extends cdk.Stack {
   constructor(
     scope: Construct,
@@ -93,16 +98,25 @@ export class BlueprintMetricsCdkStack extends cdk.Stack {
       },
     });
 
-    const scheduleRule = events.Schedule.cron({
-      minute: "0",
-      hour: "19",
-      weekDay: "MON",
+    new events.Rule(this, "WeeklyMetricsRule", {
+      schedule: events.Schedule.cron({ minute: "0", hour: "19", weekDay: "MON" }),
+      targets: [
+        new targets.LambdaFunction(fn, {
+          event: events.RuleTargetInput.fromObject({ mode: "general" }),
+        }),
+      ],
     });
 
-    new events.Rule(this, "WeeklyMetricsRule", {
-      schedule: scheduleRule,
-      targets: [new targets.LambdaFunction(fn)],
-    });
+    for (const [team, schedule] of Object.entries(TEAM_SCHEDULES)) {
+      new events.Rule(this, `WeeklyTeamsRule-${team}`, {
+        schedule,
+        targets: [
+          new targets.LambdaFunction(fn, {
+            event: events.RuleTargetInput.fromObject({ mode: "teams", team }),
+          }),
+        ],
+      });
+    }
 
     new cdk.CfnOutput(this, "LambdaFunctionName", {
       value: fn.functionName,

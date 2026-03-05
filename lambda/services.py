@@ -155,6 +155,7 @@ class GithubService:
 
     def generate_weekly_metrics(
         self,
+        team_name: str | None = None,
     ) -> List[TeamReport]:
         now = datetime.now(timezone.utc)
         one_week_ago = now - timedelta(days=7)
@@ -163,7 +164,13 @@ class GithubService:
 
         reports: List[TeamReport] = []
 
-        for team_name, team_config in self.config.teams.items():
+        teams = (
+            {team_name: self.config.teams[team_name]}
+            if team_name
+            else self.config.teams
+        )
+
+        for team_name, team_config in teams.items():
             metrics, member_activity_ = self._get_team_metrics(
                 team_name, team_config, one_week_ago, now
             )

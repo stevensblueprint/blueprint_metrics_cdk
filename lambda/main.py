@@ -55,10 +55,10 @@ def get_recruitment_metrics(
 
 
 def get_github_metrics(
-    github_service: GithubService, result_store: ThreadSafeResultStore
+    github_service: GithubService, result_store: ThreadSafeResultStore, team: str | None = None
 ) -> None:
-    logger.info("Generating weekly GitHub metrics")
-    reports = github_service.generate_weekly_metrics()
+    logger.info(f"Generating weekly GitHub metrics{f' for team: {team}' if team else ''}")
+    reports = github_service.generate_weekly_metrics(team_name=team)
     for report in reports:
         logger.info(f"Metrics computed for team: {report.team_name}")
         result_store.store(report.team_name, report)
@@ -66,7 +66,9 @@ def get_github_metrics(
 
 
 def handler(event, context):
-    logger.info("Starting metrics collection...")
+    mode = event.get("mode", "all")  # "general" | "teams" | "all"
+    team = event.get("team")  # specific team name, only used when mode="teams"
+    logger.info(f"Starting metrics collection in mode: {mode}{f', team: {team}' if team else ''}")
     try:
         config_data = (
             load_config_from_secrets()
@@ -81,20 +83,23 @@ def handler(event, context):
         results_store = ThreadSafeResultStore[MetricOutput]()
 
         with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = {
-                executor.submit(
+            futures = {}
+
+            if mode in ("general", "all"):
+                futures[executor.submit(
                     get_finance_metrics, sheets_client, finance_cfg, results_store
-                ): "finance",
-                executor.submit(
+                )] = "finance"
+                futures[executor.submit(
                     get_recruitment_metrics,
                     sheets_client,
                     recruitment_cfg,
                     results_store,
-                ): "recruitment",
-                executor.submit(
-                    get_github_metrics, github_service, results_store
-                ): "github",
-            }
+                )] = "recruitment"
+
+            if mode in ("teams", "all"):
+                futures[executor.submit(
+                    get_github_metrics, github_service, results_store, team
+                )] = "github"
 
             results = {}
             errors = []
