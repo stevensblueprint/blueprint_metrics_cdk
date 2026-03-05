@@ -163,6 +163,27 @@ class AlertMetrics:
     stale_issues: List[str]
 
 
+class MetricOutput(ABC):
+    """
+    Parent for all output objects.
+    Forces subclasses to implement `format()`.
+    """
+
+    @abstractmethod
+    def format(self) -> str:
+        """Return a human-readable representation (Discord/Slack/plaintext)."""
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def parse(cls: type[T], values: Sequence[Sequence[Any]]) -> T:
+        """
+        Optional but useful: enforce a consistent parse entrypoint.
+        If you don't want this, you can delete it and keep only `format()`.
+        """
+        raise NotImplementedError
+
+
 @dataclass(frozen=True)
 class TeamReport(MetricOutput):
     team_name: str
@@ -210,24 +231,3 @@ class RawTeamMetrics:
     npo_time_to_close: List[float] = field(default_factory=list)
     alerts_stale_prs: List[str] = field(default_factory=list)
     alerts_stale_issues: List[str] = field(default_factory=list)
-
-
-class MetricOutput(ABC):
-    """
-    Parent for all output objects.
-    Forces subclasses to implement `format()`.
-    """
-
-    @abstractmethod
-    def format(self) -> str:
-        """Return a human-readable representation (Discord/Slack/plaintext)."""
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def parse(cls: type[T], values: Sequence[Sequence[Any]]) -> T:
-        """
-        Optional but useful: enforce a consistent parse entrypoint.
-        If you don't want this, you can delete it and keep only `format()`.
-        """
-        raise NotImplementedError
