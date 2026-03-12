@@ -15,8 +15,8 @@ export interface BlueprintMetricsCdkStackProps extends cdk.StackProps {
 }
 
 const TEAM_SCHEDULES: Record<string, events.Schedule> = {
-  "genxl": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "MON" }),
-  "open-referral": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "THU" }),
+  "genxl": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "TUE" }),
+  "open-referral": events.Schedule.cron({ minute: "59", hour: "4", weekDay: "FRI" }),
 };
 
 export class BlueprintMetricsCdkStack extends cdk.Stack {
